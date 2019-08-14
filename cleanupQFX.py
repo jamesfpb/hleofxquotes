@@ -1,7 +1,14 @@
 # Python program to fix up missing end of line 
-# hleofxquotes@gmail.com
+# Orginal version: hleofxquotes@gmail.com
+# Revised version: qfxfix@bpbco.net
+# Revisions:
+# 1. Now won't add line breaks if file already formatted correctly
+# 2. Fixes <OFX> tags for compatibility with Microsoft Money
+# 3. Removes tagging errors found historically for Chase and Amex
+#
+#
 # Usage:
-# python fixWellsFargo.py  -i Checking1.qfx -o out.qfx
+# python cleanupQFX.py  -i Checking1.qfx -o out.qfx
 #
 from __future__ import print_function   # If code has to work in Python 2 and 3!
 
