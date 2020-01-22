@@ -1,14 +1,7 @@
-# Python program to fix up missing end of line 
-# Orginal version: hleofxquotes@gmail.com
-# Revised version: qfxfix@bpbco.net
-# Revisions:
-# 1. Now won't add line breaks if file already formatted correctly
-# 2. Fixes <OFX> tags for compatibility with Microsoft Money
-# 3. Removes tagging errors found historically for Chase and Amex
-#
-#
+# Python program to fix headers and XML tags on qfx files intended for MS Money import 
+# qfxfix@bpbco.net
 # Usage:
-# python cleanupQFX.py  -i Checking1.qfx -o out.qfx
+# python cleanupQFX.py -i <inputFile> -o <outputFile>
 #
 from __future__ import print_function   # If code has to work in Python 2 and 3!
 
@@ -17,75 +10,46 @@ import sys, getopt, re
 def fixFile(inputFile, outputFile):
   file = open(inputFile, "r")
   print ('Reading from', inputFile)
-  header     = True
-  prevChar   = ''
-
-  headerList = []
-  bodyList   = []
-
-  # read intput and split it into two lists: header and body
-  while 1:
-    char = file.read(1)
-    if not char: break
-
-    if header:
-      if char == '<':
-        header = False
-        bodyList.append(char)
-      else:
-        headerList.append(char)
-    else:
-      if char == '<' and not prevChar == '\n':
-        bodyList.append('\n')
-      bodyList.append(char)
-
-    prevChar = char
-
+  contents = file.read()
   file.close()
 
-  # fix up the header list for older versions of OFX standard
-  headerKeys = [
-    "DATA:",
-    "VERSION:",
-    "SECURITY:",
-    "ENCODING:",
-    "CHARSET:",
-    "COMPRESSION:",
-    "OLDFILEUID:",
-    "NEWFILEUID:",
-  ]
-  fixedHeaders = "".join(headerList)
-  for headerKey in headerKeys:
-    matchRegex   = r'(?<![\n])' + headerKey
-    newStr       = '\n' + headerKey
-    fixedHeaders = re.sub(matchRegex, newStr, fixedHeaders)
+  headerRecs = [
+    "OFXHEADER:100",
+    "DATA:OFXSGML",
+    "VERSION:102",
+    "SECURITY:NONE",
+    "ENCODING:USASCII",
+    "CHARSET:1252",
+    "COMPRESSION:NONE",
+    "OLDFILEUID:NONE",
+    "NEWFILEUID:NONE",
+    "",
+    "<OFX>"]
 
-  fixedBody = "".join(bodyList)
-  matchRegex = r'<OFX.+>'
-  newStr     = '<OFX>'
-  fixedBody  = re.sub(matchRegex, newStr, fixedBody)
-  matchRegex = r'<CATEGORY>(?=[\n\r])'
-  newStr     = '<CATEGORY>null'
-  fixedBody  = re.sub(matchRegex, newStr, fixedBody)
-#  need to change e.g. '<OFX xmlns:ns2="http://ofx.net/types/2003/04">' to '<OFX>'
-  matchRegex = r'<OFX.+>'
-  newStr     = '<OFX>'
-  fixedBody  = re.sub(matchRegex, newStr, fixedBody)
-  
+  # Headers are anything that comes before the <OFX> tag
+  # Replace all headers with Money-acceptable old style untagged headers for maximum compatibility with all Money versions
+  # Remove extraneous elements from the OFX tag itself for compatibility e.g. '<OFX xmlns:ns2="http://ofx.net/types/2003/04">' --> '<OFX>' 
+  # https://www.debuggex.com/cheatsheet/regex/python
+  # http://xahlee.info/python/python_regex_flags.html
+  # https://stackoverflow.com/questions/42581/python-re-sub-with-a-flag-does-not-replace-all-occurrences/7248027
+  matchRegex  = r'^.+?<OFX.*?>'
+  newStr      = '\n'.join(headerRecs)
+  contents    = re.sub(matchRegex, newStr, contents, 1, re.DOTALL)
+    
+  # ensure CATEGORY tag followed by the word 'null' in tagged data instead of nothing at all
+  # https://www.rexegg.com/regex-lookarounds.html
+  matchRegex  = r'<CATEGORY>(?=[<\n\r])'
+  newStr      = '<CATEGORY>null'
+  contents    = re.sub(matchRegex, newStr, contents)
 
   # write output
   print ('Writing to', outputFile)
-  file = open(outputFile, "w")
-  if fixedHeaders:
-    file.write(fixedHeaders)
-    file.write("\n")
-    file.write("\n")
-  file.write(fixedBody)
-  file.write("\n")
+  file = open(outputFile, "w") 
+  file.write(contents)
   file.close()
 
 def usage():
-  print ('fixWellsFargo.py -i <inputFile> -o <outputFile>')
+  print ('cleanupQFX.py -i <inputFile> -o <outputFile>')
 
 def main(argv):
   inputFile = ''
@@ -116,4 +80,3 @@ def main(argv):
 
 if __name__ == "__main__":
   main(sys.argv[1:])
-
